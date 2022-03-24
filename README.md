@@ -1,0 +1,2 @@
+# chessy
+python chess engine
