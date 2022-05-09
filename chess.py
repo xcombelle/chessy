@@ -109,33 +109,91 @@ def p_convert(d):
 p_convert(start_position)          
 p_convert(only_king_position)
 
-direction_king=direction_queen=[
+directions_king=direction_queen=[
     (-1,-1),(-1,0),(-1,1),
     (0,-1),(0,1),
     (1,-1),(1,0),(1,1)]
-def moves_king(diagram, coordinate, color, direction):
+
+
+def moves_king(diagram, coordinate, color):
     if diagram[coordinate]!=color|KING:
         raise Exception(f"no king in {coordinate=}")
     row,column = to_2d(coordinate)
     for dr,dc in directions_king:
-        yield row+direction*dr,column+direction*dr
-def legal_king(diagram, coordinate, color, direction):
-    for m in moves_king(diagram, coordinate, color, direction):
-        d=make_move(diagram, coordinate, color, direction)
+        yield row+dr,column+dc
+def legal_king(diagram, coordinate, color):
+    for m in moves_king(diagram, coordinate, color):
+        yield m
 
 
-def legals(diagram,color,direction):
+def is_outside(row, column):
+    #print(f"{row:=} {column:=}")
+    return not((0<=row<=7) and (0<=column<=7))
+
+def is_check_king(diagram,position,color):
+    row,column=to_2d(position)
+    for dr,dc in directions_king:
+        if is_outside(row+dr, column+dc):
+            continue
+                
+        if diagram[from_2d(row+dr,column+dc)]==KING|0x1-color:
+            return true
+
+def is_check(diagram,color):
+    for from_, piece in enumerate(diagram):
+        if (KING|color) == piece:
+            if is_check_king(diagram,from_,color):
+                return true
+        elif KING|(0x1-color) == piece:
+            pass
+        elif piece==EMPTY:
+            pass
+        else:
+            #print(piece,KING|color,KING|(0x1-color))
+            raise Exception(f"unknown piece piece")
+    return False
+
+#TODO replace from_ by src
+def play(diagram,src,dest):
+    #print(src,dest)
+    result=diagram[:]
+    result[dest]=diagram[src]
+    result[src]=EMPTY
+    return result
+def legals(diagram,color):
     for from_, piece in enumerate(diagram):
         if KING|color == piece:
-            for dest_r, dest_c in moves_king(diagram,col):
+            for dest_r, dest_c in moves_king(diagram,from_,color):
+                #print("ici")
                 if is_outside(dest_r, dest_c):
                     continue
-                if not (EMPTY==piece or (0x1 & piece == color)):
+                elif not (EMPTY==piece or (0x1 & piece == color)):
                     continue
-        else:
-            continue
-        d = play(from_,from_2d(dest_r,dest_c))
-        if is_chack(d,color):
-            continue
-        yield from_,from_2d(dest_r,dest_c))
+                else:
+                    #print(dest_r,dest_c)
+                    #print(is_outside(dest_r,dest_c))
+                    #print(from_,color,diagram,is_outside(dest_r, dest_c))
         
+                    new_diagram = play(diagram,from_,from_2d(dest_r,dest_c))
+                    if is_check(diagram,color):
+                        continue
+                    yield from_,from_2d(dest_r,dest_c),new_diagram
+        
+
+        elif KING|(0x1-color) == piece:
+            continue
+        elif piece==EMPTY:
+            continue
+        else:
+            Exception(f"unknown piece {piece=}")
+def perft(diagram,color,depth):
+    s=0
+    if depth==0:
+        return 1
+    for from_,to,diagram_result in legals(diagram,color):
+        s += perft(diagram, 0x1-color, depth-1)
+    return s
+
+for depth in range(99):
+    #print("ici")
+    print(f"depth:{depth},perft:{perft(diagram_text2bytes(only_king_position),WHITE,depth)}")
